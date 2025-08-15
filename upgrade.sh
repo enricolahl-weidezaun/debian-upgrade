@@ -39,7 +39,7 @@ confirm() {
 	while true; do
 		read -r -p "$msg [y/N]: " ans
 		case "$ans" in
-			[Yy*) return 0 ;;
+			[Yy]*) return 0 ;;
 			[Nn]*|"") return 1 ;;
 			*) echo "Bitte 'y' oder 'n' eingeben." ;;
 		esac
