@@ -39,7 +39,7 @@ confirm() {
 	while true; do
 		read -r -p "$msg [y/N]: " ans
 		case "$ans" in
-			[Yy]*) return 0 ;;
+			[Yy*) return 0 ;;
 			[Nn]*|"") return 1 ;;
 			*) echo "Bitte 'y' oder 'n' eingeben." ;;
 		esac
@@ -103,10 +103,12 @@ apt_update_checked() {
 		rm -f "$tmp"
 		exit 7
 	fi
-	# show output
-	cat "$tmp"
-	# detect GPG / missing key errors
-	if grep -Eqi 'NO_PUBKEY|GPG error|The following signatures couldn\'t be verified|The following signatures couldn't be verified' "$tmp"; then
+	# don't show the full apt output on success to keep the script quiet;
+	# only print a short info line. Detailed output is available on error
+	# (the temp file is kept for inspection when apt fails).
+	echo "[INFO] 'apt update' abgeschlossen."
+	# detect GPG / missing key errors (match both couldn't and couldnt)
+	if grep -Eqi "NO_PUBKEY|GPG error|The following signatures couldn'?t be verified" "$tmp"; then
 		echo "[ERROR] GPG-Fehler beim 'apt update' entdeckt (fehlender/verifizierungsfehlerhafter Schlüssel)." >&2
 		if [ -n "$BACKUP_DIR" ] && [ -d "$BACKUP_DIR" ]; then
 			echo "[INFO] Versuche, Backups wiederherzustellen..."
@@ -158,6 +160,7 @@ else
 	SKIP_REPO_CHECK=0
 	echo "[INFO] Quellen umgestellt (Backup: $BACKUP_DIR)."
 fi
+
 
 
 # Suche alle 'deb' Zeilen, die 'trixie' enthalten
@@ -339,4 +342,16 @@ elif apt --help 2>/dev/null | grep -qi 'modernize'; then
 	apt modernize-sources || echo "[WARN] 'apt modernize-sources' schlug fehl"
 else
 	echo '[INFO] Kein Modernize-Tool gefunden (modernize-sources/apt-modernize-sources). Die sources.list wurde nur ersetzt, aber nicht weiter modernisiert.'
+fi
+
+# Cleanup backups after a successful upgrade
+# If the script completed the upgrade path, the backups in $BACKUP_DIR are no longer needed.
+# Only remove them if the directory exists.
+if [ -n "$BACKUP_DIR" ] && [ -d "$BACKUP_DIR" ]; then
+	echo "[INFO] Upgrade abgeschlossen — entferne Backup-Verzeichnis: $BACKUP_DIR"
+	rm -rf "$BACKUP_DIR" || echo "[WARN] Konnte Backup-Verzeichnis $BACKUP_DIR nicht löschen"
+	# Also remove the standalone backup of /etc/apt/sources.list if present
+	if [ -f "/etc/apt/sources.list.backup-$TS" ]; then
+		rm -f "/etc/apt/sources.list.backup-$TS" || true
+	fi
 fi
