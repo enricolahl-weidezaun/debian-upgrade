@@ -89,7 +89,36 @@ detect_debian_12_or_confirm() {
 detect_debian_12_or_confirm
 
 echo "[INFO] Update starten..."
-apt update
+apt_update_checked() {
+	local tmp
+	tmp=$(mktemp)
+	if ! apt update >"$tmp" 2>&1; then
+		cat "$tmp" >&2
+		echo "[ERROR] 'apt update' schlug fehl." >&2
+		# If backup exists, restore
+		if [ -n "$BACKUP_DIR" ] && [ -d "$BACKUP_DIR" ]; then
+			echo "[INFO] Versuche, Backups wiederherzustellen..."
+			restore_backups_and_remove_new || true
+		fi
+		rm -f "$tmp"
+		exit 7
+	fi
+	# show output
+	cat "$tmp"
+	# detect GPG / missing key errors
+	if grep -Eqi 'NO_PUBKEY|GPG error|The following signatures couldn\'t be verified|The following signatures couldn't be verified' "$tmp"; then
+		echo "[ERROR] GPG-Fehler beim 'apt update' entdeckt (fehlender/verifizierungsfehlerhafter Schlüssel)." >&2
+		if [ -n "$BACKUP_DIR" ] && [ -d "$BACKUP_DIR" ]; then
+			echo "[INFO] Versuche, Backups wiederherzustellen..."
+			restore_backups_and_remove_new || true
+		fi
+		rm -f "$tmp"
+		exit 8
+	fi
+	rm -f "$tmp"
+}
+
+apt_update_checked
 
 echo "[INFO] Vorab-Upgrade: aktuelle Pakete für die laufende Release-Version installieren..."
 apt upgrade -y
