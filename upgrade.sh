@@ -240,11 +240,16 @@ restore_backups_and_remove_new() {
 }
 
 if confirm "Möchtest du jetzt das System auf Trixie upgraden (apt upgrade/full-upgrade)?"; then
-	echo "[INFO] apt update und Upgrade nach Repo-Änderung..."
-	apt update
-	apt upgrade -y
-	apt full-upgrade -y
-	apt --purge autoremove -y
+	# Wenn /etc/os-release bereits Trixie meldet, überspringe das Upgrade
+	if [ -r /etc/os-release ] && (grep -qi '^VERSION_CODENAME=.*trixie' /etc/os-release 2>/dev/null || grep -qi 'trixie' /etc/os-release 2>/dev/null); then
+		echo "[INFO] /etc/os-release zeigt bereits Trixie. Upgrade übersprungen."
+	else
+		echo "[INFO] apt update und Upgrade nach Repo-Änderung..."
+		apt update
+		apt upgrade -y
+		apt full-upgrade -y
+		apt --purge autoremove -y
+	fi
 else
 	echo "[INFO] Abgebrochen: Upgrade übersprungen. Stelle alte Quellen wieder her..."
 	restore_backups_and_remove_new
