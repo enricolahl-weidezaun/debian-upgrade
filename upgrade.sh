@@ -332,6 +332,8 @@ if confirm "Möchtest du jetzt das System auf Trixie upgraden (apt upgrade/full-
 		apt upgrade -y
 		apt full-upgrade -y
 		apt --purge autoremove -y
+		# mark that the release-upgrade completed successfully
+		UPGRADE_COMPLETED=1
 	fi
 else
 	echo "[INFO] Abgebrochen: Upgrade übersprungen. Stelle alte Quellen wieder her..."
@@ -355,12 +357,23 @@ fi
 
 # Cleanup backups after a successful upgrade
 # If the script completed the upgrade path, the backups in $BACKUP_DIR are no longer needed.
-# Only remove them if the directory exists.
-if [ -n "$BACKUP_DIR" ] && [ -d "$BACKUP_DIR" ]; then
-	echo "[INFO] Upgrade abgeschlossen — entferne Backup-Verzeichnis: $BACKUP_DIR"
-	rm -rf "$BACKUP_DIR" || echo "[WARN] Konnte Backup-Verzeichnis $BACKUP_DIR nicht löschen"
-	# Also remove the standalone backup of /etc/apt/sources.list if present
-	if [ -f "/etc/apt/sources.list.backup-$TS" ]; then
-		rm -f "/etc/apt/sources.list.backup-$TS" || true
-	fi
+# Only remove them if the directory exists and the upgrade actually completed.
+if [ "${UPGRADE_COMPLETED:-0}" -eq 1 ]; then
+  if [ -n "$BACKUP_DIR" ] && [ -d "$BACKUP_DIR" ]; then
+    echo "[INFO] Upgrade abgeschlossen — entferne Backup-Verzeichnis: $BACKUP_DIR"
+    rm -rf "$BACKUP_DIR" || echo "[WARN] Konnte Backup-Verzeichnis $BACKUP_DIR nicht löschen"
+  fi
+  # Also remove the standalone backup of /etc/apt/sources.list if present
+  if [ -n "$TS" ] && [ -f "/etc/apt/sources.list.backup-$TS" ]; then
+    rm -f "/etc/apt/sources.list.backup-$TS" || true
+  fi
+  # Remove any leftover .backup-* files in /etc/apt/sources.list.d (conservative)
+  shopt -s nullglob
+  for f in /etc/apt/sources.list.d/*backup-*; do
+    [ -e "$f" ] || continue
+    rm -f "$f" || echo "[WARN] Konnte $f nicht löschen"
+  done
+  shopt -u nullglob
+else
+  echo "[INFO] Upgrade nicht abgeschlossen oder kein Backup vorhanden — lösche nichts." 
 fi
