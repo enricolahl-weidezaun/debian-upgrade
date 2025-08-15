@@ -46,6 +46,48 @@ confirm() {
 	done
 }
 
+detect_debian_12_or_confirm() {
+	local id=""
+	local id_like=""
+	local ver=""
+	local codename=""
+	if [ -r /etc/os-release ]; then
+		# shellcheck disable=SC1091
+		. /etc/os-release
+		id=${ID:-}
+		id_like=${ID_LIKE:-}
+		ver=${VERSION_ID:-}
+		codename=${VERSION_CODENAME:-}
+	fi
+	# try lsb_release if available and codename empty
+	if [ -z "$codename" ] && command -v lsb_release >/dev/null 2>&1; then
+		codename=$(lsb_release -sc 2>/dev/null || true)
+	fi
+
+	# consider Debian 12 if VERSION_ID starts with 12 or codename is bookworm
+	if printf '%s' "$ver" | grep -qE '^12'; then
+		return 0
+	fi
+	if [ -n "$codename" ] && [ "$codename" = "bookworm" ]; then
+		return 0
+	fi
+
+	# not detected as Debian 12/bookworm
+	echo "[WARN] System scheint nicht Debian 12 / Codename 'bookworm' zu sein. Erkannt: ID=$id ID_LIKE=$id_like VERSION_ID=$ver VERSION_CODENAME=$codename"
+	if [ "$AUTO_YES" -eq 1 ]; then
+		echo "[WARN] -y angegeben: fahre trotz abweichender Release-Erkennung fort."
+		return 0
+	fi
+	if confirm "System ist nicht Debian 12 (bookworm). Trotzdem fortfahren?"; then
+		return 0
+	fi
+	echo "[INFO] Abgebrochen auf Wunsch des Benutzers."
+	exit 6
+}
+
+# Early check: ensure we're on Debian 12/bookworm (or confirm)
+detect_debian_12_or_confirm
+
 echo "[INFO] Update starten..."
 apt update
 
