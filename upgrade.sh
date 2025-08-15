@@ -38,9 +38,11 @@ confirm() {
 	fi
 	while true; do
 		read -r -p "$msg [y/N]: " ans
+		# normalize input: remove CR, trim whitespace, lowercase
+		ans=$(printf '%s' "$ans" | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | tr '[:upper:]' '[:lower:]')
 		case "$ans" in
-			[Yy]*) return 0 ;;
-			[Nn]*|"") return 1 ;;
+			y|yes) return 0 ;;
+			n|no|"") return 1 ;;
 			*) echo "Bitte 'y' oder 'n' eingeben." ;;
 		esac
 	done
