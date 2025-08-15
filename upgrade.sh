@@ -291,10 +291,13 @@ else
 fi
 
 restore_backups_and_remove_new() {
-	# Restore main sources.list if backup exists
+	# Restore main sources.list if backup exists (support backup stored inside $BACKUP_DIR)
 	if [ -f "/etc/apt/sources.list.backup-$TS" ]; then
 		cp -a "/etc/apt/sources.list.backup-$TS" /etc/apt/sources.list
-		echo "[INFO] /etc/apt/sources.list wiederhergestellt"
+		echo "[INFO] /etc/apt/sources.list wiederhergestellt (from /etc)"
+	elif [ -n "$BACKUP_DIR" ] && [ -f "$BACKUP_DIR/sources.list.backup-$TS" ]; then
+		cp -a "$BACKUP_DIR/sources.list.backup-$TS" /etc/apt/sources.list
+		echo "[INFO] /etc/apt/sources.list wiederhergestellt (from $BACKUP_DIR)"
 	fi
 	# Restore .list files from backup dir
 	if [ -d "$BACKUP_DIR" ]; then
