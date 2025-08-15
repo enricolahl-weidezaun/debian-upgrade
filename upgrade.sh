@@ -27,25 +27,29 @@ done
 
 # Confirm helper: default no.
 confirm() {
-	local msg="$1"
-	if [ "$AUTO_YES" -eq 1 ]; then
-		return 0
-	fi
-	# If not running in a TTY, don't attempt to prompt
-	if [ ! -t 0 ]; then
-		echo "[ERROR] Interaktive Bestätigung erforderlich, aber keine TTY. Führe das Script mit -y aus, wenn du sicher bist."
-		return 2
-	fi
-	while true; do
-		read -r -p "$msg [y/N]: " ans
-		# normalize input: remove CR, trim whitespace, lowercase
-		ans=$(printf '%s' "$ans" | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | tr '[:upper:]' '[:lower:]')
-		case "$ans" in
-			y|yes) return 0 ;;
-			n|no|"") return 1 ;;
-			*) echo "Bitte 'y' oder 'n' eingeben." ;;
-		esac
-	done
+  local msg="$1"
+  if [ "$AUTO_YES" -eq 1 ]; then return 0; fi
+
+  # kein TTY -> abbrechen (oder -y benutzen)
+  if [ ! -t 0 ]; then
+    echo "[ERROR] Interaktive Bestätigung erforderlich, aber keine TTY. Nutze -y."
+    return 2
+  fi
+
+  while true; do
+    printf "%s [y/N]: " "$msg"
+    # exakt 1 Zeichen lesen, ohne Echo; Enter = leer
+    IFS= read -r -n 1 ans
+    printf "\n"
+    # normalisieren
+    ans=$(printf '%s' "$ans" | tr '[:upper:]' '[:lower:]')
+
+    case "$ans" in
+      y|j) return 0 ;;          # y/yes, j/ja
+      n|"") return 1 ;;        # n/no oder Enter
+      *) echo "Bitte 'y'/'j' oder 'n' eingeben." ;;
+    esac
+  done
 }
 
 detect_debian_12_or_confirm() {
